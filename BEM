@@ -1,0 +1,156 @@
+# balanço de energia e massas
+# prof Eduardo Nunes / Thais Zorzeto
+
+import numpy as np
+
+# dados iniciais
+
+
+trans = 0.7 # percentual ( 1 é 100%)
+#incid = [247.61 , 175.12] # w/m2 primeiro termo da lista é verão e segundo inverno
+incid = [700 , 500]
+area_piso = 210 # m2
+
+
+q_equip = 0
+q_aquec = 0
+
+U = 7 # W/m2.k coeficiente global de transferencia de calor
+Ac = 266.02 # m2 área de cobertura
+Te = [302.77 , 285.34] # K temperatura média externa de verão e inverno
+
+F = 1.6 # W/m.K, fator perimetral
+P = 74 # m, perimetro da estufa
+
+Cp =1000 # J/K.kg calor especifico ar
+Vv = [5.46, 5.71] # m/s velocidade de vento
+Aa = 88.22 # m2
+par = 1.2 # densidade do ar kg/m3
+E = 0.35 # eficiencia de abertura
+    
+ER = 1 # razão de energia
+FC = 0.85 # fator de cultivo
+
+q_inf = 0
+
+es = 0.85 # emissividade média
+tol =0.8 # transmitancia termica em ondas longas
+ksb = 5.673*10**(-8) # constante Stephan-Boltzmann
+ea = [0.851, 0.759] # emissividade atmosferica aparente verão e inverno
+
+Mp = 587.265 # kg/s vapor por segundo
+
+Wex = [0.020615, 0.0733] # kg vapor/ kg ar seco, umidade absoluta
+
+
+def calc_calor_radiativo (_trans, _incid, _area_piso):
+
+    aux_verao = _trans * _incid[0] *_area_piso # indice [0] é verão
+    aux_inverno = _trans * _incid[1] * _area_piso # indice [1] é inverno
+
+    return aux_verao, aux_inverno
+
+
+def calc_calor_respiracao(_q_rad_verao, _q_rad_inverno):
+
+    aux_verao = q_rad_verao * 0.003
+    aux_inverno = q_rad_inverno * 0.003
+
+    return aux_verao, aux_inverno
+
+
+def calc_calor_conducao (_U, _Ac, _Te):
+
+    aux_ti = _U * _Ac
+    aux_te_verao = _U * _Ac * _Te[0]
+    aux_te_inverno = _U * _Ac * _Te[1]
+    
+    return aux_ti, aux_te_verao, aux_te_inverno
+
+
+def calc_calor_piso (_F, _P, _Te):
+    
+    aux_ti = _F * _P
+    aux_te_verao = _F * _P * _Te[0]
+    aux_te_inverno = _F * _P * _Te[1]
+
+    return aux_ti, aux_te_verao, aux_te_inverno
+
+
+def calc_calor_vent_latente (_ER, _FC, _q_rad_verao, _q_rad_inverno):
+
+    aux_verao = q_rad_verao * _ER * _FC
+    aux_inverno = q_rad_inverno * _ER * _FC
+
+    return aux_verao, aux_inverno
+
+def calc_calor_vent_sensivel (_par, _Cp, _Vv, _Aa, _E, _Te):
+
+    aux_ti_verao = _E * _Vv[0] * _Aa * _par * _Cp
+    aux_ti_inverno = _E * _Vv[1] * _Aa * _par * _Cp
+    aux_te_verao = _E * _Vv[0] * _Aa * _par * _Cp * _Te[0]
+    aux_te_inverno = _E * _Vv[1] * _Aa * _par * _Cp * _Te[1]
+
+    return aux_ti_verao, aux_ti_inverno, aux_te_verao, aux_te_inverno     
+
+
+def calc_calor_rtc (_es, _tol, _ksb, _ea, _area_piso, _Te):
+
+    aux_ti = _es * _tol * _ksb * _area_piso
+    aux_te_verao = _es * _tol * _ksb * _area_piso * _ea[0] * _Te[0]**4
+    aux_te_inverno = _es * _tol * _ksb * _area_piso * _ea[1] * _Te[1]**4
+
+    return aux_ti, aux_te_verao, aux_te_inverno 
+
+def calc_calor_fotossintese(_q_rad_verao, _q_rad_inverno):
+
+    aux_verao = q_rad_verao * 0.03
+    aux_inverno = q_rad_inverno * 0.03
+
+    return aux_verao, aux_inverno
+
+
+# calculo de calor independente de Te e Ti
+q_rad_verao, q_rad_inverno = calc_calor_radiativo (trans, incid, area_piso)
+print ("q_rad_verao:" , q_rad_verao)
+print ("q_rad_inverno:" , q_rad_inverno)
+q_resp_verao, q_resp_inverno = calc_calor_respiracao(q_rad_verao, q_rad_inverno)
+print ("q_resp_verao:" , q_resp_verao)
+print ("q_resp_inverno:" , q_resp_inverno)
+q_vl_verao, q_vl_inverno = calc_calor_vent_latente (ER, FC, q_rad_verao, q_rad_inverno)
+print ("q_vl_verao:" , q_vl_verao)
+print ("q_vl_inverno:" , q_vl_inverno)
+q_fot_verao, q_fot_inverno = calc_calor_fotossintese(q_rad_verao, q_rad_inverno)
+print ("q_fot_verao:" , q_fot_verao)
+print ("q_fot_inverno:" , q_fot_inverno)
+
+# calculo de calores dependentes de te e Ti
+
+q_cond_ti, q_cond_te_verao, q_cond_te_inverno = calc_calor_conducao (U, Ac, Te)
+q_piso_ti, q_piso_te_verao, q_piso_te_inverno = calc_calor_piso (F, P, Te)
+q_vs_ti_verao, q_vs_ti_inverno, q_vs_te_verao, q_vs_te_inverno = calc_calor_vent_sensivel (par, Cp, Vv, Aa, E, Te)
+q_rtc_ti, q_rtc_te_verao, q_rtc_te_inverno = calc_calor_rtc (es, tol, ksb, ea, area_piso, Te)
+
+# calculo de a
+
+a = q_rtc_ti
+
+# calculo de b de verao e inverno
+
+b_verao = q_cond_ti + q_piso_ti + q_vs_ti_verao
+b_inverno = q_cond_ti + q_piso_ti + q_vs_ti_inverno
+
+# calculo de c de verao e inverno
+
+c_verao = (-q_rad_verao) + (-q_resp_verao) + q_vl_verao + q_fot_verao + q_cond_te_verao + q_piso_te_verao + q_vs_te_verao + q_rtc_te_verao
+c_inverno = (-q_rad_inverno) + (-q_resp_inverno) + q_vl_inverno + q_fot_inverno + q_cond_te_inverno + q_piso_te_inverno + q_vs_te_inverno + q_rtc_te_inverno
+
+print ("c_verao:" , c_verao)
+print ("c_inverno:" , c_inverno)
+
+
+coeff = [a,0,0,b_inverno,-(c_inverno)]
+print(" temperatura inverno:", np.roots(coeff))
+
+coeff = [a,0,0,b_verao,-(c_verao)]
+print(" temperatura verao:", np.roots(coeff))
